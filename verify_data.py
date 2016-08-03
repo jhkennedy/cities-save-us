@@ -1,0 +1,84 @@
+#!/usr/bin/env python3
+
+"""
+A script to view cities emissions data
+"""
+import os
+import sys
+import numpy as np
+import argparse
+
+from datetime import datetime, timedelta
+from netCDF4 import Dataset
+from pprint import pprint
+
+from util import customArgparseTypes as cat
+
+MOLAR_MASS_AIR = 28.966 # g/Mol
+MEAN_MASS_AIR = 5.1480e21 # g
+MOLAR_MASS_C = 12.01 # g/Mol
+PPM_C_1752 = 276.39
+
+def parse_args(args=None):
+    parser = argparse.ArgumentParser(description=__doc__,
+                formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+   
+    parser.add_argument('-e','--emmissions', type=cat.abs_existing_file,
+            help='The emissions dataset.')
+    
+    results = parser.parse_args(args)
+    
+    return results
+
+
+class DataGrid:
+    def __init__(self, data):
+        self.lon = data.variables['Longitude']
+        self.lat = data.variables['Latitude']
+        self.area = data.variables['AREA']
+        self.ff = data.variables['FF']
+        self.t = data.variables['time_counter']
+        
+        date_string = str.join(' ', self.t.getncattr('units').split(' ')[2:])
+        self.t_0 = datetime.strptime(date_string, '%Y-%m-%d %H:%M:%S')
+
+        self.dt = timedelta(days=365.0/12.0)
+
+        em1751 = 0.0
+        for tt in range(12):
+            em1751 += np.sum( self.ff[tt,:,:] * self.area[:,:] ) * self.dt.total_seconds() # gC
+        
+        self.gC_0 = em1751
+
+        ppm_em1751 = (em1751 / MOLAR_MASS_C) / (MEAN_MASS_AIR / MOLAR_MASS_AIR) * 1.e6
+                   # (g / g/Mol) / (g / g/Mol) * 1.e6
+                   # (Mol) / (Mol) * 1.e6
+                   # (Mol) / (Mol/1.e6)
+                   # ppm
+        self.ppm_0 = PPM_C_1752 - ppm_em1751
+        
+
+def main(args):
+    emis = DataGrid(Dataset(args.emmissions, 'r'))
+
+    print('Initial Carbon (ppm):  '+str(emis.ppm_0))
+    
+    total_emissions = 0.0 # gC
+    for tt in range(len(emis.t)):
+        total_emissions += np.sum( emis.ff[tt,:,:] * emis.area[:,:] ) * emis.dt.total_seconds() # gC
+        
+    print('Total emisions (gC):   '+str(total_emissions))
+
+    ppm_emissions = (total_emissions / MOLAR_MASS_C) / (MEAN_MASS_AIR / MOLAR_MASS_AIR) * 1.e6 
+                  # (g / g/Mol) / (g / g/Mol) * 1.e6
+                  # (Mol) / (Mol) * 1.e6
+                  # (Mol) / (Mol/1.e6)
+                  # ppm
+
+    print('Total emisions (+ppm): '+str(ppm_emissions))
+    print('Final Carbon   (ppm):  '+str(emis.ppm_0 + ppm_emissions)) 
+
+
+if __name__ == '__main__':
+    args = parse_args()
+    main(args)
