@@ -1,16 +1,14 @@
 #!/usr/bin/env python3
 
 """
-A script to view cities emissions data
+A script to verify cities emissions data
 """
-import os
-import sys
+
 import numpy as np
 import argparse
 
 from datetime import datetime, timedelta
 from netCDF4 import Dataset
-from pprint import pprint
 
 from util import customArgparseTypes as cat
 
@@ -26,9 +24,7 @@ def parse_args(args=None):
     parser.add_argument('-e','--emmissions', type=cat.abs_existing_file,
             help='The emissions dataset.')
     
-    results = parser.parse_args(args)
-    
-    return results
+    return parser.parse_args(args)
 
 
 class DataGrid:
