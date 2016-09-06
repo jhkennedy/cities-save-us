@@ -17,7 +17,7 @@ from util import customArgparseTypes as cat
 MOLAR_MASS_AIR = 28.966 # g/Mol
 MEAN_MASS_AIR = 5.1480e21 # g
 MOLAR_MASS_C = 12.01 # g/Mol
-PPM_C_1752 = 276.39
+PPM_C_1752 = 276.39 # Mol/(Mol/1e6)
 
 def parse_args(args=None):
     parser = argparse.ArgumentParser(description=__doc__,
@@ -46,7 +46,7 @@ class DataGrid:
 
         em1751 = 0.0
         for tt in range(12):
-            em1751 += np.sum( self.ff[tt,:,:] * self.area[:,:] ) * self.dt.total_seconds() # gC
+            em1751 += np.sum( self.ff[tt,:,:] * self.area[:,:] ) * self.dt.total_seconds() # g
         
         self.gC_0 = em1751
 
@@ -65,7 +65,7 @@ def main(args):
     
     total_emissions = 0.0 # gC
     for tt in range(len(emis.t)):
-        total_emissions += np.sum( emis.ff[tt,:,:] * emis.area[:,:] ) * emis.dt.total_seconds() # gC
+        total_emissions += np.sum( emis.ff[tt,:,:] * emis.area[:,:] ) * emis.dt.total_seconds() # g
         
     print('Total emisions (gC):   '+str(total_emissions))
 
@@ -80,5 +80,4 @@ def main(args):
 
 
 if __name__ == '__main__':
-    args = parse_args()
-    main(args)
+    main(parse_args())
