@@ -4,8 +4,10 @@
 A script to verify cities emissions data
 """
 
-import numpy as np
 import argparse
+
+import scipy
+import numpy as np
 
 from datetime import datetime, timedelta
 from netCDF4 import Dataset
@@ -34,6 +36,8 @@ class DataGrid:
         self.area = data.variables['AREA']
         self.ff = data.variables['FF']
         self.t = data.variables['time_counter']
+        
+        self.lat_grid, self.lon_grid = scipy.meshgrid(self.lat[:], self.lon[:], indexing='ij')
         
         date_string = str.join(' ', self.t.getncattr('units').split(' ')[2:])
         self.t_0 = datetime.strptime(date_string, '%Y-%m-%d %H:%M:%S')
