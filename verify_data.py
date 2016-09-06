@@ -23,7 +23,8 @@ def parse_args(args=None):
     parser = argparse.ArgumentParser(description=__doc__,
                 formatter_class=argparse.ArgumentDefaultsHelpFormatter)
    
-    parser.add_argument('-e','--emmissions', type=cat.abs_existing_file,
+    parser.add_argument('-e','--emissions', type=cat.abs_existing_file,
+            default=os.path.join('data','fix.nc'),
             help='The emissions dataset.')
     
     return parser.parse_args(args)
@@ -59,7 +60,7 @@ class DataGrid:
         
 
 def main(args):
-    emis = DataGrid(Dataset(args.emmissions, 'r'))
+    emis = DataGrid(Dataset(args.emissions, 'r'))
 
     print('Initial Carbon (ppm):  '+str(emis.ppm_0))
     
