@@ -65,12 +65,12 @@ def main(args):
     emis_year *= emis.area[:,:] * emis.dt.total_seconds() # g
 
     emis_year_ppm = (emis_year / MOLAR_MASS_C) / (MEAN_MASS_AIR / MOLAR_MASS_AIR) * 1.e6 
-    emis_year_Gt = emis_year * 1.0e-15
+    emis_year_Mt = emis_year * 1.0e-12
 
     x_grid, y_grid = city_map(emis.lon_grid, emis.lat_grid)
     
-    clevs = [0.0001] + np.linspace(0.0,0.085,18)
-    cont = city_map.contourf(x_grid, y_grid, emis_year_Gt, clevs, cmap='Reds', zorder=100)
+    clevs = [0.1] + np.linspace(0.0,85,18)
+    cont = city_map.contourf(x_grid, y_grid, emis_year_Mt, clevs, cmap='Reds', zorder=100)
 
     
     # Get city data
@@ -88,11 +88,11 @@ def main(args):
 
     # Finish plot
     plt.title('The top 49 $CO_2$ emitting cities in 2005 [Hoornweg, 2010], \n '+
-            'located within the globally gridded $CO_2$ emissions (Gt; '+
+            'located within the globally gridded $CO_2$ emissions (Mt; '+
             '>1e-4) during '+str(args.year))
     
     cbar = city_map.colorbar(cont, location='bottom', pad='5%')
-    cbar.set_label('Gt $CO_2$')
+    cbar.set_label('Mt $CO_2$')
     plt.show()
 
 

@@ -6,6 +6,7 @@ A script to verify cities emissions data
 
 import argparse
 
+import os
 import scipy
 import numpy as np
 
