@@ -8,6 +8,7 @@ emitting cities (coordinates).
 import argparse
 
 import os
+import scipy
 import pandas
 import numpy as np
 
@@ -35,6 +36,9 @@ def parse_args(args=None):
             default=2005,
             help='Year to plot for the emissions dataset.')
     
+    parser.add_argument('-n','--nearest', type=cat.unsigned_int,
+            help='Use all this many nearest neighbors.')
+    
 
     return parser.parse_args(args)
 
@@ -57,19 +61,57 @@ def main(args):
     city_data = pandas.read_csv(args.cities)
     soi = ['Population (Millions)','Total GHG (MtCO2e)','Total GHG (tCO2e/cap)']
 
-    emis_grid_nn = RegularGridInterpolator([emis.lat, emis.lon],
-            emis_year_Mt, method='nearest')
-   
-    soi.append('Em. dataset (MtCO2e)')
-    city_data[soi[-1]] = emis_grid_nn(city_data[['Latitude','Longitude']])
     
+    if not args.nearest:
+        emis_grid_nn = RegularGridInterpolator([emis.lat, emis.lon],
+                emis_year_Mt, method='nearest')
+       
+        soi.append('Em. dataset (MtCO2e)')
+        city_data[soi[-1]] = emis_grid_nn(city_data[['Latitude','Longitude']])
+        
+    else:
+        emis.ll = np.ndarray( (len(emis.lat_grid.ravel()), 2) )
+        emis.ll[:,0] = emis.lat_grid.ravel()
+        emis.ll[:,1] = emis.lon_grid.ravel()
+
+        emis.tree = scipy.spatial.cKDTree(emis.ll)
+        
+        city_qd, city_qi = emis.tree.query(city_data[['Latitude','Longitude']], k=args.nearest)
+        
+        city_qe = np.zeros(city_data[['Latitude']].shape)
+        for ii in range(len(city_data[['Latitude']])):
+            city_qe[ii] = np.sum(emis_year_Mt.ravel()[city_qi[ii,:]])
+
+        soi.append('Em. dataset (MtCO2e)')
+        city_data[soi[-1]] = city_qe
+
+
     soi.append('Total - Em. (MtCO2e)')
     city_data[soi[-1]] = city_data[soi[1]] - city_data[soi[3]]
 
-    print(city_data[ [soi[i] for i in [1,3,4]] ].describe())
+    soi.append('% Diff (Total vs Em.)')
+    city_data[soi[-1]] = (city_data[soi[3]] - city_data[soi[1]]) / city_data[soi[1]] * 100.
+
+
+    print(city_data[ [soi[ii] for ii in [1,3,4,5]] ])
     print('-'*80)
-    print(city_data[ [soi[i] for i in [1,3,4]] ])
+    print(city_data[ [soi[ii] for ii in [1,3,4,5]] ].describe())
+    print('-'*80)
+
+    print('Total emissions from the cities (Mt):\n')
+    city_emis = np.array( [np.sum(city_data[soi[ii]]) for ii in [1,3,4]] )
+    for ii, item in enumerate([1,3,4]):
+        print(soi[item]+':   '+str(city_emis[ii]))
     
+    print('\nTotal global emissions (Mt):\n')
+    emis.globe = np.sum(emis_year_Mt, axis=None)
+    print(emis.globe)
+
+    print('\n% global emissions cities account for:\n')
+    for ii, item in enumerate([1,3,4]):
+        print(soi[item]+':   '+str(city_emis[ii]/emis.globe*100.))
+    
+
 
 if __name__ == '__main__':
     main(parse_args())
