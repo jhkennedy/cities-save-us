@@ -24,8 +24,8 @@ def parse_args(args=None):
     parser = argparse.ArgumentParser(description=__doc__,
                 formatter_class=argparse.ArgumentDefaultsHelpFormatter)
    
-    parser.add_argument('-e','--emissions', type=cat.abs_existing_file,
-            default=os.path.join('data','fix.nc'),
+    parser.add_argument('-e','--emissions', type=cat.emissions_file,
+            default=os.path.join('data','CMIP5_gridcar_CO2_emissions_fossil_fuel_Andres_1751-2007_monthly_SC_mask11.nc'),
             help='The emissions dataset.')
     
     return parser.parse_args(args)

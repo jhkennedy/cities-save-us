@@ -4,6 +4,17 @@ import os
 import sys
 import argparse
 
+
+def emissions_file(f):
+    MSG = 'NOTE: you may need to combine the emsissions datasets first! See the data directory.'
+    N = len(MSG)
+    try:
+        abs_existing_file(f)
+    except argparse.ArgumentTypeError as E:
+        print('{}\n{}\n{}'.format('='*N, MSG,'='*N))
+        raise E
+
+
 def abs_existing_file(f):
     path = os.path.abspath(f)
     if not os.path.isfile(path):
