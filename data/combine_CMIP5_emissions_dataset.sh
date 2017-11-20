@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+
+ncrcat CMIP5_gridcar_CO2_emissions_fossil_fuel_Andres_1751-1900_monthly_SC_mask11.nc  CMIP5_gridcar_CO2_emissions_fossil_fuel_Andres_1901-2007_monthly_SC_mask11.nc  CMIP5_gridcar_CO2_emissions_fossil_fuel_Andres_1751-2007_monthly_SC_mask11.nc
