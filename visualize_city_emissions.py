@@ -47,6 +47,7 @@ def main(args):
     # Get emissions data
     if 'cmip5' in args.emissions.lower():
         emis = data.CMIP5EmissionsGrid.fromFile(args.emissions)
+        model = 'CMIP5'
     else:
         raise ValueError('Unknown emissions dataset.')
    
@@ -81,9 +82,10 @@ def main(args):
         city_map.scatter(x_grid, y_grid, 10, marker='+', color='b', zorder=150)
 
     # Finish plot
-    plt.title('The top 49 $CO_2$ emitting cities in 2005 [Hoornweg, 2010], \n '+
-            'located within the globally gridded $CO_2$ emissions (Mt; '+
-            '>1e-4) during '+str(args.year))
+    title = ' '.join(['The top 49 $CO_2$ emitting cities in 2005 [Hoornweg, 2010], \n',
+                       'located within the {} globally gridded $CO_2$ emissions',
+                       '(Mt; >1e-4) during {}'])
+    plt.title(title.format(model, args.year))
     
     cbar = city_map.colorbar(cont, location='bottom', pad='5%')
     cbar.set_label('Mt $CO_2$')
