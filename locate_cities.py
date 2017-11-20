@@ -5,19 +5,19 @@ A script to locate the top 49 CO2 emitting cities within the global CO2
 emissions dataset
 """
 
-import argparse
 
 import os
-import pandas
+import argparse
 import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
 
 from mpl_toolkits.basemap import Basemap
-from netCDF4 import Dataset
+
+import data
 
 from util import customArgparseTypes as cat
-from verify_data import DataGrid
-from verify_data import MOLAR_MASS_AIR, MEAN_MASS_AIR, MOLAR_MASS_C, PPM_C_1752 
+
 
 def parse_args(args=None):
     parser = argparse.ArgumentParser(description=__doc__,
@@ -31,8 +31,8 @@ def parse_args(args=None):
             default=os.path.join('data','CMIP5_gridcar_CO2_emissions_fossil_fuel_Andres_1751-2007_monthly_SC_mask11.nc'),
             help='The emissions dataset.')
     
-    parser.add_argument('-y','--year', type=cat.emissions_year,
-            default=2005,
+    parser.add_argument('-y','--year',
+            default='2005',
             help='Year to plot for the emissions dataset.')
 
     parser.add_argument('-g','--grid', action='store_true',
@@ -44,6 +44,12 @@ def parse_args(args=None):
 
 
 def main(args):
+    # Get emissions data
+    if 'cmip5' in args.emissions.lower():
+        emis = data.CMIP5EmissionsGrid.fromFile(args.emissions)
+    else:
+        raise ValueError('Unknown emissions dataset.')
+   
     # Setup the plot
     city_map = Basemap(projection='robin', lon_0=0)
     city_map.drawcoastlines()
@@ -52,20 +58,8 @@ def main(args):
     city_map.drawmeridians(np.arange(-180.,181.,20.))
     city_map.drawmapboundary(fill_color='white')
     
-    # Get emissions data
-    emis = DataGrid(Dataset(args.emissions, 'r'))
-    
-    emis_dy = 2008-args.year
-    start_month = -12*emis_dy
-    stop_month = -12*(emis_dy-1)
-
-    emis_year = emis.ff[start_month,:,:] 
-    for tt in range(start_month, stop_month):
-        emis_year += emis.ff[tt,:,:] 
-    emis_year *= emis.area[:,:] * emis.dt.total_seconds() # g
-
-    emis_year_ppm = (emis_year / MOLAR_MASS_C) / (MEAN_MASS_AIR / MOLAR_MASS_AIR) * 1.e6 
-    emis_year_Mt = emis_year * 1.0e-12
+    emis_year_gC = emis.series_emissions(args.year, n_months=12)
+    emis_year_Mt = emis_year_gC * 1.0e-12
 
     x_grid, y_grid = city_map(emis.lon_grid, emis.lat_grid)
     
@@ -74,7 +68,7 @@ def main(args):
 
     
     # Get city data
-    city_data = pandas.read_csv(args.cities)
+    city_data = pd.read_csv(args.cities)
     
     x, y = city_map(np.array(city_data['Longitude'].tolist()), 
                     np.array(city_data['Latitude'].tolist()) )
@@ -98,4 +92,3 @@ def main(args):
 
 if __name__ == '__main__':
     main(parse_args())
-

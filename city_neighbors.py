@@ -5,19 +5,17 @@ A script to determine the CO2 emissions at the grid points nearest the top 49
 emitting cities (coordinates). 
 """
 
-import argparse
-
 import os
-import scipy
-import pandas
+import argparse
+import scipy as sp
 import numpy as np
+import pandas as pd
 
-from netCDF4 import Dataset
 from scipy.interpolate import RegularGridInterpolator
 
+import data
+
 from util import customArgparseTypes as cat
-from verify_data import DataGrid
-from verify_data import MOLAR_MASS_AIR, MEAN_MASS_AIR, MOLAR_MASS_C, PPM_C_1752 
 
 
 def parse_args(args=None):
@@ -32,87 +30,67 @@ def parse_args(args=None):
             default=os.path.join('data','CMIP5_gridcar_CO2_emissions_fossil_fuel_Andres_1751-2007_monthly_SC_mask11.nc'),
             help='The emissions dataset.')
     
-    parser.add_argument('-y','--year', type=cat.emissions_year,
-            default=2005,
+    parser.add_argument('-y','--year',
+            default='2005',
             help='Year to plot for the emissions dataset.')
-    
+
     parser.add_argument('-n','--nearest', type=cat.unsigned_int,
-            help='Use all this many nearest neighbors.')
+            help='Sum the emissions for this many cells which are nearest neighbors to a city.')
     
 
     return parser.parse_args(args)
 
 def main(args):
-    emis = DataGrid(Dataset(args.emissions, 'r'))
-
-    emis_dy = 2008-args.year
-    start_month = -12*emis_dy
-    stop_month = -12*(emis_dy-1)
-
-    emis_year = emis.ff[start_month,:,:] 
-    for tt in range(start_month, stop_month):
-        emis_year += emis.ff[tt,:,:] 
-    emis_year *= emis.area[:,:] * emis.dt.total_seconds() # g
-
-    emis_year_ppm = (emis_year / MOLAR_MASS_C) / (MEAN_MASS_AIR / MOLAR_MASS_AIR) * 1.e6 
-    emis_year_Mt = emis_year * 1.0e-12
-
-
-    city_data = pandas.read_csv(args.cities)
-    soi = ['Population (Millions)','Total GHG (MtCO2e)','Total GHG (tCO2e/cap)']
-
+    # Get emissions data
+    if 'cmip5' in args.emissions.lower():
+        emis = data.CMIP5EmissionsGrid.fromFile(args.emissions)
+        model = 'CMIP5'
+    else:
+        raise ValueError('Unknown emissions dataset.')
     
+    emis_year_gC = emis.series_emissions(args.year, n_months=12)
+    emis_year_Mt = emis_year_gC * 1.0e-12
+
+    city_data = pd.read_csv(args.cities)
+
     if not args.nearest:
         emis_grid_nn = RegularGridInterpolator([emis.lat, emis.lon],
                 emis_year_Mt, method='nearest')
        
-        soi.append('Em. dataset (MtCO2e)')
-        city_data[soi[-1]] = emis_grid_nn(city_data[['Latitude','Longitude']])
-        
+        city_data['NN Emissions (MtCO2e)'] = emis_grid_nn(city_data[['Latitude','Longitude']])
+        number_of_cells = 1
     else:
         emis.ll = np.ndarray( (len(emis.lat_grid.ravel()), 2) )
         emis.ll[:,0] = emis.lat_grid.ravel()
         emis.ll[:,1] = emis.lon_grid.ravel()
 
-        emis.tree = scipy.spatial.cKDTree(emis.ll)
+        emis.tree = sp.spatial.cKDTree(emis.ll)
+        city_q_distance, city_q_idxs = emis.tree.query(city_data[['Latitude','Longitude']], k=args.nearest)
         
-        city_qd, city_qi = emis.tree.query(city_data[['Latitude','Longitude']], k=args.nearest)
-        
-        city_qe = np.zeros(city_data[['Latitude']].shape)
+        city_q_emissions = np.zeros(city_data[['Latitude']].shape)
         for ii in range(len(city_data[['Latitude']])):
-            city_qe[ii] = np.sum(emis_year_Mt.ravel()[city_qi[ii,:]])
+            city_q_emissions[ii] = np.sum(emis_year_Mt.ravel()[city_q_idxs[ii,:]])
 
-        soi.append('Em. dataset (MtCO2e)')
-        city_data[soi[-1]] = city_qe
+        city_data['NN Emissions (MtCO2e)'] = city_q_emissions
+        number_of_cells = args.nearest
 
+    city_data['NN Em. - City (MtCO2e)'] = city_data.iloc[:,7] - city_data.iloc[:,5]
+    city_data['% Error'] = (city_data.iloc[:,7] - city_data.iloc[:,5]) / city_data.iloc[:,5] * 100.
 
-    soi.append('Total - Em. (MtCO2e)')
-    city_data[soi[-1]] = city_data[soi[1]] - city_data[soi[3]]
+    print('\nTotal emissions from the to 50 cities:')
+    city_emis = city_data['Total GHG (MtCO2e)'].sum()
+    nn_emis = city_data['NN Emissions (MtCO2e)'].sum()
+    print('    As reported in [Hoornweg, 2010]:               {}'.format(city_emis))
+    print('    As calculated using {:2d} nearest neighbor cells: {:.3f}'.format(number_of_cells, nn_emis))
 
-    soi.append('% Diff (Total vs Em.)')
-    city_data[soi[-1]] = (city_data[soi[3]] - city_data[soi[1]]) / city_data[soi[1]] * 100.
+    global_emis = emis_year_Mt.sum()
+    print('\nTotal global emissions from {} (Mt):            {:.3f}'.format(model, global_emis))
 
-
-    print(city_data[ [soi[ii] for ii in [1,3,4,5]] ])
-    print('-'*80)
-    print(city_data[ [soi[ii] for ii in [1,3,4,5]] ].describe())
-    print('-'*80)
-
-    print('Total emissions from the cities (Mt):\n')
-    city_emis = np.array( [np.sum(city_data[soi[ii]]) for ii in [1,3,4]] )
-    for ii, item in enumerate([1,3,4]):
-        print(soi[item]+':   '+str(city_emis[ii]))
-    
-    print('\nTotal global emissions (Mt):\n')
-    emis.globe = np.sum(emis_year_Mt, axis=None)
-    print(emis.globe)
-
-    print('\n% global emissions cities account for:\n')
-    for ii, item in enumerate([1,3,4]):
-        print(soi[item]+':   '+str(city_emis[ii]/emis.globe*100.))
-    
-
+    print('\n% global emissions cities account for:')
+    print('    ' + 'Using [Hoornweg, 2010]:             {:.3f}'.format(city_emis/global_emis * 100))
+    print('    ' + 'Using {:2d} nearest neighbor cells:    {:.3f}'.format(number_of_cells, nn_emis/global_emis * 100))
+   
+    print('')
 
 if __name__ == '__main__':
     main(parse_args())
-
