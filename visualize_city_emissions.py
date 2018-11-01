@@ -11,7 +11,8 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
-from mpl_toolkits.basemap import Basemap
+from cartopy import crs as ccrs
+from cartopy import feature as cpf
 
 import data
 
@@ -50,33 +51,30 @@ def main(args):
     else:
         raise ValueError('Unknown emissions dataset.')
 
-    # Setup the plot
-    city_map = Basemap(projection='robin', lon_0=0)
-    city_map.drawcoastlines()
-    city_map.fillcontinents(color='0.75', lake_color='1')
-    city_map.drawparallels(np.arange(-80., 81., 20.))
-    city_map.drawmeridians(np.arange(-180., 181., 20.))
-    city_map.drawmapboundary(fill_color='white')
-
     emis_year_gC = emis.series_emissions(args.year, n_months=12)
     emis_year_Mt = emis_year_gC * 1.0e-12
 
-    x_grid, y_grid = city_map(emis.lon_grid, emis.lat_grid)
+    # setup plot
+    fig, ax = plt.subplots(1, 1, subplot_kw={'projection': ccrs.Robinson()}, figsize=(10, 10))
 
     clevs = [0.1] + np.linspace(0.0, 85, 18)
-    cont = city_map.contourf(x_grid, y_grid, emis_year_Mt, clevs, cmap='Reds', zorder=100)
+    contours = ax.contourf(emis.lon_grid, emis.lat_grid, emis_year_Mt, clevs,
+                           zorder=1, cmap='Reds', transform=ccrs.PlateCarree())
+
+    ax.set_global()
+    ax.add_feature(cpf.LAND, zorder=0, facecolor='lightgrey', edgecolor='black')
+    ax.gridlines()
 
     # Get city data
     city_data = pd.read_csv(args.cities)
 
-    x, y = city_map(np.array(city_data['Longitude'].tolist()),
-                    np.array(city_data['Latitude'].tolist()))
+    x, y = np.array(city_data['Longitude'].tolist()), np.array(city_data['Latitude'].tolist())
 
-    city_map.scatter(x, y, 30, marker='o', edgecolors='m', facecolors='none', zorder=200)
+    ax.scatter(x, y, 30, marker='o', edgecolors='m', facecolors='none', zorder=3, transform=ccrs.PlateCarree())
 
     # Show the emissions grid
     if args.grid:
-        city_map.scatter(x_grid, y_grid, 10, marker='+', color='b', zorder=150)
+        ax.scatter(emis.lon_grid, emis.lat_grid, 10, marker='+', color='b', zorder=2, transform=ccrs.PlateCarree())
 
     # Finish plot
     title = ' '.join(['The top 49 $CO_2$ emitting cities in 2005 [Hoornweg, 2010], \n',
@@ -84,8 +82,9 @@ def main(args):
                       '(Mt; >1e-4) during {}'])
     plt.title(title.format(model, args.year))
 
-    cbar = city_map.colorbar(cont, location='bottom', pad='5%')
+    cbar = fig.colorbar(contours, orientation='horizontal')
     cbar.set_label('Mt $CO_2$')
+    plt.tight_layout()
     plt.show()
 
 
