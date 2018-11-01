@@ -8,10 +8,10 @@ import pandas as pd
 #########################
 # Some useful constants #
 #########################
-MOLAR_MASS_AIR = 28.966 # g/Mol
-MEAN_MASS_AIR = 5.1480e21 # g
-MOLAR_MASS_C = 12.01 # g/Mol
-PPM_C_1752 = 276.39 # Mol/(Mol/1e6)
+MOLAR_MASS_AIR = 28.966  # g/Mol
+MEAN_MASS_AIR = 5.1480e21  # g
+MOLAR_MASS_C = 12.01  # g/Mol
+PPM_C_1752 = 276.39  # Mol/(Mol/1e6)
 
 
 class EmissionsGrid(object):
@@ -22,27 +22,29 @@ class EmissionsGrid(object):
         """
         Initialize
         """
-        if (lat.shape and not lon.shape):
+        if lat.shape and not lon.shape:
             raise ValueError('lat and lon must both be given.')
         self.lat = lat
         self.lon = lon
         self.lat_grid, self.lon_grid = np.meshgrid(self.lat[:], self.lon[:], indexing='ij')
         
         if area.shape != self.lat_grid.shape:
-            raise ValueError('lat_grid and area must have the same shape; lat_gird.shape = {}'.format(self.lat_grid.shape))
+            raise ValueError('lat_grid and area must have the same shape;'
+                             ' lat_gird.shape = {}'.format(self.lat_grid.shape))
         self.area = area
        
         self.months = self._month_series(start_date, end_date, n_months)
         
         if ff_co2.shape != (len(self.months), *self.lat_grid.shape):
-            raise ValueError('ff_co2 must have this shape: {}'.format( (len(self.months), *self.lat_grid.shape) ))
+            raise ValueError('ff_co2 must have this shape: {}'.format((len(self.months), *self.lat_grid.shape)))
         self.ff_co2 = ff_co2  # in gC/m^2/s
 
         self.co2 = self.ff_co2 * self.area * (self.months.days_in_month[:, None, None].values * 24 * 60 * 60)  # in gC
 
-        self.ppm_0 = PPM_C_1752 - self.gC_to_ppm(self.series_emissions(start_date,'1752').sum())
+        self.ppm_0 = PPM_C_1752 - self.gC_to_ppm(self.series_emissions(start_date, '1752').sum())
 
 
+    # noinspection PyPep8Naming
     @staticmethod
     def gC_to_ppm(emissions):
         """
@@ -98,4 +100,4 @@ class EmissionsGrid(object):
         """
         _slice = self._month_slice(start_date, end_date, n_months)
         
-        return self.co2[_slice,:,:].sum(axis=0)
+        return self.co2[_slice, :, :].sum(axis=0)
