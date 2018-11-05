@@ -55,7 +55,8 @@ def main(args):
     emis_year_Mt = emis_year_gC * 1.0e-12
 
     # setup plot
-    fig, ax = plt.subplots(1, 1, subplot_kw={'projection': ccrs.Robinson()}, figsize=(10, 10))
+    fig, ax = plt.subplots(1, 1, subplot_kw={'projection': ccrs.Robinson()},
+                           figsize=(8, 10))
 
     clevs = [0.1] + np.linspace(0.0, 85, 18)
     contours = ax.contourf(emis.lon_grid, emis.lat_grid, emis_year_Mt, clevs,
@@ -84,6 +85,13 @@ def main(args):
 
     cbar = fig.colorbar(contours, orientation='horizontal')
     cbar.set_label('Mt $CO_2$')
+    plt.tight_layout()
+    plt.show()
+
+    city_data.plot.bar(x='City', y='Total GHG (MtCO2e)')
+    plt.title('The top 49 $CO_2$ emitting cities in 2005 [Hoornweg, 2010]'
+              '(Mt; >1e-4) during {}'.format(args.year))
+
     plt.tight_layout()
     plt.show()
 
