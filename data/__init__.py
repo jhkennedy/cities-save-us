@@ -50,8 +50,12 @@ class CMIP6EmissionsGrid(EmissionsGrid):
     The CMIP6 emissions dataset
     """
     def __init__(self, em_data, months=None, glob=None):
+        self.name = 'CMIP6'
         self.glob = glob
         self.emissions = em_data
+
+        self.lat_grid, self.lon_grid = np.meshgrid(em_data.lat.values, em_data.lon.values,
+                                                   indexing='ij')
 
         timestamp = np.datetime_as_string(em_data.time[0].values, unit='D')
         if months is None:
@@ -59,9 +63,7 @@ class CMIP6EmissionsGrid(EmissionsGrid):
         else:
             self.months = months
 
-        # FIXME: Needed? What are units on sector emissions?
         self.co2 = self.emissions.sum('sector').CO2_em_anthro
-
         self.co2 = self.co2 * self.emissions.area * (
             self.months.days_in_month[:, None, None].values * 24 * 60 * 60) \
             * 1000. / MOLAR_MASS_CO2 * MOLAR_MASS_C  # in gC
@@ -121,8 +123,12 @@ class CMIP5EmissionsGrid(EmissionsGrid):
         """
         Initialize
         """
+        self.name = 'CMIP5'
         self.glob = glob
         self.emissions = em_data
+
+        self.lat_grid, self.lon_grid = np.meshgrid(em_data.lat.values, em_data.lon.values,
+                                                   indexing='ij')
 
         timestamp = ' '.join(em_data.time.units.split(' ')[2:])
         if months is None:
@@ -138,7 +144,6 @@ class CMIP5EmissionsGrid(EmissionsGrid):
 
     @classmethod
     def from_disk(cls, glob=None, chunks=(('time_counter', 12),), **kwargs):
-        # TODO: Chunking?
         if glob is None:
             glob = os.path.join(HERE, 'CMIP5', 'CMIP5_gridcar_CO2_*.nc')
 
@@ -147,7 +152,7 @@ class CMIP5EmissionsGrid(EmissionsGrid):
         timestamp = ' '.join(em_data.time_counter.units.split(' ')[2:])
         time = pd.date_range(start=timestamp, periods=len(em_data.time_counter), freq='M')
         em_data.time_counter.values = time.values
-        em_data = em_data.rename({'time_counter': 'time'})
+        em_data = em_data.rename({'time_counter': 'time', 'Longitude': 'lon', 'Latitude': 'lat'})
 
         cmip = cls(em_data, months=time, glob=glob)
         return cmip

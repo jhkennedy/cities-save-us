@@ -8,6 +8,7 @@ import argparse
 
 import data
 
+
 def parse_args(args=None):
     parser = argparse.ArgumentParser(description=__doc__,
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -20,17 +21,15 @@ def parse_args(args=None):
 
 
 def main(args):
-    try:
-        emis = args.emissions.from_disk()
-    except:
-        raise ValueError('Unknown emissions dataset.')
+    emis = args.emissions.from_disk()
 
-    print('\nInitial Carbon (ppm):       {:.3f} on {}'.format(emis.ppm_0, (emis.months[0] - 1).strftime('%Y-%m-%d')))
+    print('\nInitial Carbon (ppm):       {:.3f} on {}'.format(
+            emis.ppm_0, (emis.months[0] - 1).strftime('%Y-%m-%d')))
 
-    T_em = emis.series_emissions(emis.months[0], '2007-12-31').sum()
-    # print('\nTotal cumulonive emisions (gC):   {:.3e} at {}'.format(T_em, emis.months[-1]))
+    t_em = emis.series_emissions(emis.months[0], '2007-12-31').sum()
+    # print('\nTotal cumulonive emisions (gC):   {:.3e} at {}'.format(t_em, emis.months[-1]))
 
-    ppm_em = emis.gC_to_ppm(T_em).values
+    ppm_em = emis.gC_to_ppm(t_em).values
     print('Total cum. emisions (+ppm): {:.3f} on {}'.format(ppm_em, '2007-12-31'))
     print('Final Carbon   (ppm):       {:.3f} on {}'.format(emis.ppm_0 + ppm_em, '2007-12-31'))
 

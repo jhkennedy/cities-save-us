@@ -27,9 +27,8 @@ def parse_args(args=None):
                         default=os.path.join('data', 'CityCO2Emissions.csv'),
                         help='The cities dataset.')
 
-    parser.add_argument('-e', '--emissions', type=cat.emissions_file,
-                        default=os.path.join('data',  'CMIP5', 'CMIP5_gridcar_CO2_emissions_fossil_fuel_'
-                                                              'Andres_1751-2007_monthly_SC_mask11.nc'),
+    parser.add_argument('-e', '--emissions', type=data.get_emissions_grid,
+                        default='CMIP6',
                         help='The emissions dataset.')
 
     parser.add_argument('-y', '--year',
@@ -44,12 +43,7 @@ def parse_args(args=None):
 
 
 def main(args):
-    # Get emissions data
-    if 'cmip5' in args.emissions.lower():
-        emis = data.CMIP5EmissionsGrid.from_file(args.emissions)
-        model = 'CMIP5'
-    else:
-        raise ValueError('Unknown emissions dataset.')
+    emis = args.emissions.from_disk()
 
     emis_year_gC = emis.series_emissions(args.year, n_months=12)
     emis_year_Mt = emis_year_gC * 1.0e-12
@@ -71,17 +65,19 @@ def main(args):
 
     x, y = np.array(city_data['Longitude'].tolist()), np.array(city_data['Latitude'].tolist())
 
-    ax.scatter(x, y, 30, marker='o', edgecolors='m', facecolors='none', zorder=3, transform=ccrs.PlateCarree())
+    ax.scatter(x, y, 30, marker='o', edgecolors='m', facecolors='none', zorder=3,
+               transform=ccrs.PlateCarree())
 
     # Show the emissions grid
     if args.grid:
-        ax.scatter(emis.lon_grid, emis.lat_grid, 10, marker='+', color='b', zorder=2, transform=ccrs.PlateCarree())
+        ax.scatter(emis.lon_grid, emis.lat_grid, 10, marker='+', color='b', zorder=2,
+                   transform=ccrs.PlateCarree())
 
     # Finish plot
     title = ' '.join(['The top 49 $CO_2$ emitting cities in 2005 [Hoornweg, 2010], \n',
                       'located within the {} globally gridded $CO_2$ emissions',
                       '(Mt; >1e-4) during {}'])
-    plt.title(title.format(model, args.year))
+    plt.title(title.format(emis.name, args.year))
 
     cbar = fig.colorbar(contours, orientation='horizontal')
     cbar.set_label('Mt $CO_2$')
