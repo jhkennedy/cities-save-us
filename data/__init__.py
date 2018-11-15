@@ -3,11 +3,9 @@ Classes for working with these datasets
 """
 
 import os
+import numpy as np
 import xarray as xr
 import pandas as pd
-import numpy as np
-
-from netCDF4 import Dataset
 
 #########################
 # Some useful constants #
@@ -16,6 +14,7 @@ HERE = os.path.dirname(__file__)
 MOLAR_MASS_AIR = 28.966  # g/Mol
 MEAN_MASS_AIR = 5.1480e21  # g
 MOLAR_MASS_C = 12.01  # g/Mol
+MOLAR_MASS_CO2 = 44.01  # g/Mol
 PPM_C_1752 = 276.39  # Mol/(Mol/1e6)
 
 
@@ -50,18 +49,37 @@ class CMIP6EmissionsGrid(EmissionsGrid):
     """
     The CMIP6 emissions dataset
     """
-    def __init__(self, em_data, glob=None):
+    def __init__(self, em_data, months=None, glob=None):
         self.glob = glob
         self.emissions = em_data
+
+        timestamp = np.datetime_as_string(em_data.time[0].values, unit='D')
+        if months is None:
+            self.months = pd.date_range(start=timestamp, periods=len(em_data.time), freq='M')
+        else:
+            self.months = months
+
+        # FIXME: Needed? What are units on sector emissions?
         self.co2 = self.emissions.sum('sector').CO2_em_anthro
 
+        self.co2 = self.co2 * self.emissions.area * (
+            self.months.days_in_month[:, None, None].values * 24 * 60 * 60) \
+            * 1000. / MOLAR_MASS_CO2 * MOLAR_MASS_C  # in gC
+
+        self.ppm_0 = PPM_C_1752 - self.gC_to_ppm(
+                    self.series_emissions(timestamp, '1752').sum()).values
+
     @classmethod
-    def from_disk(cls, glob=None, **kwargs):
+    def from_disk(cls, glob=None, chunks=(('time', 12),), **kwargs):
         if glob is None:
             glob = os.path.join(HERE, 'CMIP6', 'CO2-*.nc')
 
-        em_data = xr.open_mfdataset(glob, **kwargs)
-        cmip6 = cls(em_data, glob)
+        em_data = xr.open_mfdataset(glob, chunks=dict(chunks), **kwargs)
+
+        area = xr.open_dataset(os.path.join(HERE, 'CMIP6', 'CEDS_gridcell_area_05.nc'))
+        em_data['area'] = area['gridcell area']
+
+        cmip6 = cls(em_data, glob=glob)
         return cmip6
 
     # noinspection PyTypeChecker
@@ -99,63 +117,40 @@ class CMIP5EmissionsGrid(EmissionsGrid):
     The CMIP5 emissions dataset
     """
 
-    def __init__(self, lat=None, lon=None, area=None, ff_co2=None, start_date=None, end_date=None,
-                 n_months=None):
+    def __init__(self, em_data, months=None, glob=None):
         """
         Initialize
         """
-        if lat.shape and not lon.shape:
-            raise ValueError('lat and lon must both be given.')
-        self.lat = lat
-        self.lon = lon
-        self.lat_grid, self.lon_grid = np.meshgrid(self.lat[:], self.lon[:], indexing='ij')
+        self.glob = glob
+        self.emissions = em_data
 
-        if area.shape != self.lat_grid.shape:
-            raise ValueError('lat_grid and area must have the same shape;'
-                             ' lat_gird.shape = {}'.format(self.lat_grid.shape))
-        self.area = area
+        timestamp = ' '.join(em_data.time.units.split(' ')[2:])
+        if months is None:
+            self.months = pd.date_range(start=timestamp, periods=len(em_data.time), freq='M')
+        else:
+            self.months = months
 
-        self.months = self._month_series(start_date, end_date, n_months)
-
-        if ff_co2.shape != (len(self.months), *self.lat_grid.shape):
-            raise ValueError(
-                'ff_co2 must have this shape: {}'.format((len(self.months), *self.lat_grid.shape)))
-        self.ff_co2 = ff_co2  # in gC/m^2/s
-
-        self.co2 = self.ff_co2 * self.area * (
+        self.co2 = self.emissions.FF * self.emissions.AREA * (
                     self.months.days_in_month[:, None, None].values * 24 * 60 * 60)  # in gC
 
-        self.ppm_0 = PPM_C_1752 - self.gC_to_ppm(self.series_emissions(start_date, '1752').sum())
+        self.ppm_0 = PPM_C_1752 - self.gC_to_ppm(
+                    self.series_emissions(timestamp, '1752').sum()).values
 
     @classmethod
-    def from_file(cls, _file, mode='r', **kwargs):
-        """
-        Create a new CMIP5Emissions from a netCDF file.
-        """
-        if mode != 'r':
-            data = Dataset(_file, mode=mode, **kwargs)
-            cmip5 = cls.from_data(data)
-        else: 
-            with Dataset(_file, mode=mode, **kwargs) as data:
-                cmip5 = cls.from_data(data)
+    def from_disk(cls, glob=None, chunks=(('time_counter', 12),), **kwargs):
+        # TODO: Chunking?
+        if glob is None:
+            glob = os.path.join(HERE, 'CMIP5', 'CMIP5_gridcar_CO2_*.nc')
 
-        return cmip5 
+        em_data = xr.open_mfdataset(glob, decode_times=False, chunks=dict(chunks), **kwargs)
 
-    @classmethod
-    def from_data(cls, data):
-        """
-        Create a new CMIP5Emissions from a netCDF Dataset.
-        """
-        cmip5 = cls(lat=data.variables['Latitude'][:],
-                    lon=data.variables['Longitude'][:], 
-                    area=data.variables['AREA'][:, :],
-                    ff_co2=data.variables['FF'][:, :, :],
-                    start_date=str.join(' ', data.variables['time_counter'
-                                                            ].getncattr('units').split(' ')[2:]),
-                    n_months=len(data.variables['time_counter'][:])
-                    )
-        
-        return cmip5
+        timestamp = ' '.join(em_data.time_counter.units.split(' ')[2:])
+        time = pd.date_range(start=timestamp, periods=len(em_data.time_counter), freq='M')
+        em_data.time_counter.values = time.values
+        em_data = em_data.rename({'time_counter': 'time'})
+
+        cmip = cls(em_data, months=time, glob=glob)
+        return cmip
 
     @staticmethod
     def _month_series(start_date=None, end_date=None, n_months=None):
