@@ -76,7 +76,11 @@ class CMIP6EmissionsGrid(EmissionsGrid):
         if glob is None:
             glob = os.path.join(HERE, 'CMIP6', 'CO2-*.nc')
 
-        em_data = xr.open_mfdataset(glob, chunks=dict(chunks), **kwargs)
+        em_data = xr.open_mfdataset(glob, decode_times=False, chunks=dict(chunks), **kwargs)
+
+        timestamp = ' '.join(em_data.time.units.split(' ')[2:])
+        time = pd.date_range(start=timestamp, periods=len(em_data.time), freq='M')
+        em_data.time.values = time.values
 
         area = xr.open_dataset(os.path.join(HERE, 'CMIP6', 'CEDS_gridcell_area_05.nc'))
         em_data['area'] = area['gridcell area']
