@@ -16,7 +16,7 @@ def parse_args(args=None):
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
     parser.add_argument('-c', '--cities', type=cat.abs_existing_file,
-                        default=os.path.join('data', 'cities', 'CityCO2Emissions.csv'),
+                        default=os.path.join('data', 'cities', 'CitiesandClimateChange.csv'),
                         help='The cities dataset.')
 
     parser.add_argument('-t', '--town-areas', type=cat.abs_existing_file,
