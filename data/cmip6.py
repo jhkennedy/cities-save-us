@@ -3,11 +3,9 @@ import numpy as np
 import xarray as xr
 import pandas as pd
 
-from data import EmissionsGrid
-from data import PPM_C_1752
-from data import MOLAR_MASS_C
-from data import MOLAR_MASS_CO2
-
+from data.grid import MOLAR_MASS_C
+from data.grid import MOLAR_MASS_CO2
+from data.grid import EmissionsGrid
 
 HERE = os.path.dirname(__file__)
 
@@ -19,24 +17,19 @@ class CMIP6EmissionsGrid(EmissionsGrid):
     def __init__(self, em_data, months=None, glob=None):
         self.name = 'CMIP6'
         self.glob = glob
-        self.emissions = em_data
 
         self.lat_grid, self.lon_grid = np.meshgrid(em_data.lat.values, em_data.lon.values,
                                                    indexing='ij')
 
-        timestamp = np.datetime_as_string(em_data.time[0].values, unit='D')
+        timestamp = str(np.datetime_as_string(em_data.time[0].values, unit='D'))
         if months is None:
-            self.months = pd.date_range(start=timestamp, periods=len(em_data.time), freq='M')
-        else:
-            self.months = months
+            months = pd.date_range(start=timestamp, periods=len(em_data.time), freq='M')
 
-        self.co2 = self.emissions.sum('sector').CO2_em_anthro
-        self.co2 = self.co2 * self.emissions.area * (
-            self.months.days_in_month[:, None, None].values * 24 * 60 * 60) \
+        co2 = em_data.sum('sector').CO2_em_anthro
+        co2 = co2 * em_data.area * (months.days_in_month[:, None, None].values * 24 * 60 * 60) \
             * 1000. / MOLAR_MASS_CO2 * MOLAR_MASS_C  # in gC
 
-        self.ppm_0 = PPM_C_1752 - self.gC_to_ppm(
-                    self.series_emissions(timestamp, '1752').sum()).values
+        super().__init__(em_data=em_data, co2=co2, months=months, timestamp=timestamp)
 
     @classmethod
     def from_disk(cls, glob=None, chunks=(('time', 12),), **kwargs):
@@ -75,13 +68,3 @@ class CMIP6EmissionsGrid(EmissionsGrid):
             raise ValueError('Must specify at least two of: start_date, end_date, n_months.')
 
         return _slice
-
-    def series_emissions(self, start_date=None, end_date=None, n_months=None):
-        """
-        Find the total emissions at each grid location over a timeseries
-        """
-        _slice = self.month_slice(start_date, end_date, n_months)
-
-        return self.co2.sel(time=_slice).sum(dim='time')
-
-
