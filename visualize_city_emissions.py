@@ -39,6 +39,9 @@ def parse_args(args=None):
                         help='Show the emissions grid. Warning: this will clobber the global'
                              ' map and is only useful for zooming in.')
 
+    parser.add_argument('-t', '--title', action='store_true', default=True,
+                        help='Include plot titles')
+
     parser.add_argument('-s', '--save', action='store_true',
                         help='Save the figure as a 600dpi EPS figure instead of show.')
 
@@ -78,9 +81,11 @@ def main(args):
 
     # Finish plot
     title = ' '.join([])
-    plt.title(f'The top 49 $CO_2$ emitting cities in 2005 [Hoornweg, 2010], \n'
-              f'located within the {emis.name} globally gridded $CO_2$ emissions'
-              f'(Mt; >1e-4) during {args.year}')
+
+    if args.title:
+        plt.title(f'The top 49 $CO_2$ emitting cities in 2005 [Hoornweg, 2010], \n'
+                  f'located within the {emis.name} globally gridded $CO_2$ emissions'
+                  f'(Mt; >1e-4) during {args.year}')
 
     cbar = fig.colorbar(contours, orientation='horizontal', fraction=0.03, pad=0.05)
     cbar.set_label('Mt $CO_2$')
@@ -91,8 +96,10 @@ def main(args):
         plt.show()
 
     city_data.plot.bar(x='City', y='Total GHG (MtCO2e)', figsize=(8, 6))
-    plt.title(f'The top 49 $CO_2$ emitting cities in 2005 [Hoornweg, 2010]'
-              f'(Mt; >1e-4) during {args.year}')
+
+    if args.title:
+        plt.title(f'The top 49 $CO_2$ emitting cities in 2005 [Hoornweg, 2010]'
+                  f'(Mt; >1e-4) during {args.year}')
 
     plt.tight_layout()
     if args.save:

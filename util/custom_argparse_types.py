@@ -5,7 +5,7 @@ import os
 
 
 def emissions_file(f):
-    MSG = 'NOTE: you may need to combine the emsissions datasets first! See the data directory.'
+    MSG = 'NOTE: you may need to combine the emissions datasets first! See the data directory.'
     N = len(MSG)
     try:
         path = abs_existing_file(f)
