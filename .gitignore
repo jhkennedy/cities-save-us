@@ -65,3 +65,9 @@ docs/_build/
 # PyBuilder
 target/
 
+# Intelli
+.idea
+
+# Data
+*.nc
+*.status
