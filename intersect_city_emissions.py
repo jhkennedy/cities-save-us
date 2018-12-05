@@ -3,18 +3,23 @@
 import os
 import re
 import argparse
+import warnings
+import numpy as np
 import pandas as pd
 import shapefile
+import cartopy.feature
 import matplotlib.pyplot as plt
 
+from scipy.spatial import cKDTree
 from shapely.geometry import shape
+from shapely.geometry import MultiPoint
 from cartopy import crs as ccrs
-from cartopy.feature import ShapelyFeature
-import cartopy.feature
 
 import data
 
 from util import custom_argparse_types as cat
+
+warnings.filterwarnings('ignore')
 
 
 def parse_args(args=None):
@@ -36,6 +41,10 @@ def parse_args(args=None):
     parser.add_argument('-y', '--year',
                         default='2005',
                         help='Year to plot for the emissions dataset.')
+
+    parser.add_argument('-n', '--nearest', type=cat.unsigned_int, default=2,
+                        help='Sum the emissions for this many cells which are '
+                             'nearest neighbors to a city.')
 
     return parser.parse_args(args)
 
@@ -81,22 +90,65 @@ def city_shape_from_record(reader: shapefile.Reader, city: str) -> dict:
     raise KeyError(f'{city} does not exist in the shapefile')
 
 
-def main(args):
-    # cmip = args.emissions.from_disk()
-    # print(cmip.name)
+def nn_corner_hulls(elem_nns: np.ndarray, x_corners: np.ndarray, y_corners: np.ndarray):
+    grid_shape = np.array(x_corners.shape) - 1
+    hull_shapes = []
+    for elem in elem_nns:
+        all_corners = []
+        for nn in elem:
+            ii, jj = np.unravel_index(nn, grid_shape)
+            # clockwise from lower-left
+            all_corners.extend([(x_corners[ii, jj], y_corners[ii, jj]),
+                                (x_corners[ii+1, jj], y_corners[ii + 1, jj]),
+                                (x_corners[ii+1, jj+1], y_corners[ii + 1, jj + 1]),
+                                (x_corners[ii, jj+1], y_corners[ii, jj + 1]),
+                                ])
 
-    cities = pd.read_csv(args.cities)
+        hull_shapes.append(MultiPoint(all_corners).convex_hull)
+
+    return hull_shapes
+
+
+def main(args):
+    emis = args.emissions.from_disk()
+
+    emis_year_gC = emis.series_emissions(args.year, n_months=12)
+    emis_year_Mt = emis_year_gC.values * 1.0e-12
+
+    city_data = pd.read_csv(args.cities)
+
+    emis.ll = np.ndarray((len(emis.lat_grid.ravel()), 2))
+    emis.ll[:, 0] = emis.lat_grid.ravel()
+    emis.ll[:, 1] = emis.lon_grid.ravel()
+
+    emis.tree = cKDTree(emis.ll)
+    city_q_distance, city_q_idxs = emis.tree.query(city_data[['Latitude', 'Longitude']],
+                                                   k=args.nearest)
+
+    city_q_emissions = np.zeros(city_data[['Latitude']].shape)
+    for ii in range(len(city_data[['Latitude']])):
+        city_q_emissions[ii] = np.sum(emis_year_Mt.ravel()[city_q_idxs[ii, :]])
+
+    city_nn_outlines = nn_corner_hulls(city_q_idxs, emis.lon_corners, emis.lat_corners)
+
+    city_data['NN Emissions (MtCO2e)'] = city_q_emissions
+
+    city_data['NN Em. - City (MtCO2e)'] = city_data['NN Emissions (MtCO2e)'] \
+        - city_data['Total GHG (MtCO2e)']
+    city_data['% Error'] = - city_data['NN Em. - City (MtCO2e)'] \
+        / city_data['Total GHG (MtCO2e)'] * 100.
+
     towns = shapefile.Reader(args.town_areas)
 
-    city_towns = set(cities.City[cities.Country == 'USA']).intersection(
-            set([strip_all(r[3]) for r in towns.iterRecords()])
+    city_towns = set(city_data.City[city_data.Country == 'USA']).intersection(
+        set([strip_all(r[3]) for r in towns.iterRecords()])
     )
     city_towns = [whitespace_camel_case(s) for s in city_towns]
 
     for ct in city_towns:
         geojson = city_shape_from_record(towns, ct)
 
-        if ct.upper() == 'PHILADELPHIA'or ct.upper() == 'CHICAGO':
+        if ct.upper() == 'PHILADELPHIA' or ct.upper() == 'CHICAGO':
             # FIXME: But why??
             continue
 
@@ -104,9 +156,27 @@ def main(args):
         fig, ax = plt.subplots(1, 1, subplot_kw={'projection': ccrs.Robinson()},
                                figsize=(8, 6))
 
-        plt.title(ct)
-        shp = ShapelyFeature(shape(geojson),  ccrs.PlateCarree(), edgecolor='black')
+        ax.add_feature(cartopy.feature.LAND, zorder=1, facecolor='none', edgecolor='darkgrey')
+
+        pcm = ax.pcolormesh(emis.lon_corners, emis.lat_corners, np.ma.masked_less(emis_year_Mt, 0.1),
+                            vmin=0.1, vmax=85.1, zorder=0, cmap='Reds', transform=ccrs.PlateCarree())
+
+        shp = cartopy.feature.ShapelyFeature(shape(geojson), ccrs.PlateCarree(), edgecolor='tab:blue',
+                                             facecolor='None', zorder=2)
         ax.add_feature(shp)
+
+        outline_idx = city_data.loc[city_data.City == strip_all(ct)].index.values[0]
+        oln = cartopy.feature.ShapelyFeature([city_nn_outlines[outline_idx].exterior],
+                                             ccrs.PlateCarree(), edgecolor='tab:purple',
+                                             facecolor='None', zorder=3)
+        ax.add_feature(oln)
+
+        ax.scatter(city_data['Longitude'], city_data['Latitude'], 30, marker='o',
+                   edgecolors='m', facecolors='none', zorder=4, transform=ccrs.PlateCarree())
+
+        cbar = fig.colorbar(pcm, orientation='horizontal', fraction=0.03, pad=0.05)
+        cbar.set_label('Mt $CO_2$')
+        plt.title(ct)
 
         plt.show()
 

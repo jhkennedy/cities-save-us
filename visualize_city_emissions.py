@@ -55,9 +55,8 @@ def main(args):
     fig, ax = plt.subplots(1, 1, subplot_kw={'projection': ccrs.Robinson()},
                            figsize=(8, 6))
 
-    clevs = [0.1] + np.linspace(0.0, 85, 18)
-    contours = ax.contourf(emis.lon_grid, emis.lat_grid, emis_year_Mt, clevs,
-                           zorder=1, cmap='Reds', transform=ccrs.PlateCarree())
+    pcm = ax.pcolormesh(emis.lon_corners, emis.lat_corners, np.ma.masked_less(emis_year_Mt, 0.1),
+                        vmin=0.1, vmax=85.1, zorder=1, cmap='Reds', transform=ccrs.PlateCarree())
 
     ax.set_global()
     ax.add_feature(cpf.LAND, zorder=0, facecolor='lightgrey', edgecolor='black')
@@ -82,7 +81,7 @@ def main(args):
               f'located within the {emis.name} globally gridded $CO_2$ emissions'
               f'(Mt; >1e-4) during {args.year}')
 
-    cbar = fig.colorbar(contours, orientation='horizontal', fraction=0.03, pad=0.05)
+    cbar = fig.colorbar(pcm, orientation='horizontal', fraction=0.03, pad=0.05)
     cbar.set_label('Mt $CO_2$')
     plt.tight_layout()
     if args.save:
