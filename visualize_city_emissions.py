@@ -9,10 +9,7 @@ import os
 import argparse
 import numpy as np
 import pandas as pd
-import matplotlib
-matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
-
 
 from cartopy import crs as ccrs
 from cartopy import feature as cpf
@@ -27,7 +24,7 @@ def parse_args(args=None):
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
     parser.add_argument('-c', '--cities', type=cat.abs_existing_file,
-                        default=os.path.join('data', 'cities',  'CityCO2Emissions.csv'),
+                        default=os.path.join('data', 'cities',  'CitiesandClimateChange.csv'),
                         help='The cities dataset.')
 
     parser.add_argument('-e', '--emissions', type=data.get_emissions_grid,
@@ -41,9 +38,6 @@ def parse_args(args=None):
     parser.add_argument('-g', '--grid', action='store_true',
                         help='Show the emissions grid. Warning: this will clobber the global'
                              ' map and is only useful for zooming in.')
-
-    parser.add_argument('-t', '--title', action='store_true', default=False,
-                        help='Include plot titles')
 
     parser.add_argument('-s', '--save', action='store_true',
                         help='Save the figure as a 600dpi EPS figure instead of show.')
@@ -61,9 +55,8 @@ def main(args):
     fig, ax = plt.subplots(1, 1, subplot_kw={'projection': ccrs.Robinson()},
                            figsize=(8, 6))
 
-    clevs = [0.1] + np.linspace(0.0, 85, 18)
-    contours = ax.contourf(emis.lon_grid, emis.lat_grid, emis_year_Mt, clevs,
-                           zorder=1, cmap='Reds', transform=ccrs.PlateCarree())
+    pcm = ax.pcolormesh(emis.lon_corners, emis.lat_corners, np.ma.masked_less(emis_year_Mt, 0.1),
+                        vmin=0.1, vmax=85.1, zorder=1, cmap='Reds', transform=ccrs.PlateCarree())
 
     ax.set_global()
     ax.add_feature(cpf.LAND, zorder=0, facecolor='lightgrey', edgecolor='black')
@@ -84,13 +77,11 @@ def main(args):
 
     # Finish plot
     title = ' '.join([])
+    plt.title(f'The top 49 $CO_2$ emitting cities in 2005 [Hoornweg, 2010], \n'
+              f'located within the {emis.name} globally gridded $CO_2$ emissions'
+              f'(Mt; >1e-4) during {args.year}')
 
-    if args.title:
-        plt.title(f'The top 49 $CO_2$ emitting cities in 2005 [Hoornweg, 2010], \n'
-                  f'located within the {emis.name} globally gridded $CO_2$ emissions'
-                  f'(Mt; >1e-4) during {args.year}')
-
-    cbar = fig.colorbar(contours, orientation='horizontal', fraction=0.03, pad=0.05)
+    cbar = fig.colorbar(pcm, orientation='horizontal', fraction=0.03, pad=0.05)
     cbar.set_label('Mt $CO_2$')
     plt.tight_layout()
     if args.save:
@@ -98,11 +89,11 @@ def main(args):
     else:
         plt.show()
 
-    city_data.plot.bar(x='City', y='Total GHG (MtCO2e)', figsize=(8, 6))
+    ax = city_data.plot.bar(x='City', y='Total GHG (MtCO2e)', color='C0', figsize=(8, 6))
+    ax.legend(['Hoornweg, 2010 (Mt CO2)'])
+    ax.set_ylabel('Mt CO2')
 
-    if args.title:
-        plt.title(f'The top 49 $CO_2$ emitting cities in 2005 [Hoornweg, 2010]'
-                  f'(Mt; >1e-4) during {args.year}')
+    plt.title(f'The top 49 $CO_2$ emitting cities in 2005 [Hoornweg, 2010]')
 
     plt.tight_layout()
     if args.save:

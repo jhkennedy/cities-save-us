@@ -1,0 +1,15 @@
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.7
+  - numpy=1.15.3
+  - scipy=1.1.0
+  - pandas=0.23.4
+  - pyshp=1.2.12
+  - shapely=1.6.4
+  - cartopy=0.16.0
+  - matplotlib=3.0.1
+  - netCDF4=1.4.2
+  - xarray=0.10.9
+  - dask=0.20.0
