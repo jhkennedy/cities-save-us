@@ -1,5 +1,6 @@
 import abc
 
+import numpy as np
 import xarray as xr
 import pandas as pd
 
@@ -20,8 +21,16 @@ class EmissionsGrid(object):
 
     def __init__(self,  em_data: xr.Dataset, co2: xr.Dataset, months: pd.DatetimeIndex,
                  timestamp: str):
-
         self.emissions = em_data
+
+        self.lat_grid, self.lon_grid = np.meshgrid(em_data.lat.values, em_data.lon.values,
+                                                   indexing='ij')
+        dlat = em_data.lat[1] - em_data.lat[0]
+        dlon = em_data.lon[1] - em_data.lon[0]
+        clat = np.append((em_data.lat - dlat / 2.0).values, (em_data.lat[-1] + dlat / 2.0).values)
+        clon = np.append((em_data.lon - dlon / 2.0).values, (em_data.lon[-1] + dlon / 2.0).values)
+        self.lat_corners, self.lon_corners = np.meshgrid(clat, clon, indexing='ij')
+
         self.months = months
         self.co2 = co2
 

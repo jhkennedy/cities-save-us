@@ -22,7 +22,7 @@ def parse_args(args=None):
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
     parser.add_argument('-c', '--cities', type=cat.abs_existing_file,
-                        default=os.path.join('data', 'cities', 'CityCO2Emissions.csv'),
+                        default=os.path.join('data', 'cities', 'CitiesandClimateChange.csv'),
                         help='The cities dataset.')
 
     parser.add_argument('-e', '--emissions', type=data.get_emissions_grid,
@@ -68,7 +68,7 @@ def main(args):
         for ii in range(len(city_data[['Latitude']])):
             city_q_emissions[ii] = np.sum(emis_year_Mt.ravel()[city_q_idxs[ii, :]])
 
-        city_data['NN Emissions (MtCO2e)'] = city_q_emissions
+        city_data['NN Emissions (MtCO2e)'] = city_q_emissions * data.MOLAR_MASS_CO2 / data.MOLAR_MASS_C
         number_of_cells = args.nearest
 
     city_data['NN Em. - City (MtCO2e)'] = city_data.iloc[:, 7] - city_data.iloc[:, 5]

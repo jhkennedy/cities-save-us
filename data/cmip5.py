@@ -1,5 +1,5 @@
 import os
-import numpy as np
+
 import xarray as xr
 import pandas as pd
 
@@ -20,9 +20,6 @@ class CMIP5EmissionsGrid(EmissionsGrid):
         """
         self.name = 'CMIP5'
         self.glob = glob
-
-        self.lat_grid, self.lon_grid = np.meshgrid(em_data.lat.values, em_data.lon.values,
-                                                   indexing='ij')
 
         timestamp = ' '.join(em_data.time.units.split(' ')[2:])
         if months is None:

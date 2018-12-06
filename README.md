@@ -88,8 +88,15 @@ interface (CLI). The scripts:
   for a set of USA cities from N nearest neighbor grid cells from the global emissions 
   dataset, create a contour plot of the global emissions grid around the cities with the
   nearest neighbor cell boundaries outlined and the Landscan city boundaries outlined. 
-  *NOTE: this script is still under development.*
+  The figures should look like:
   
+  ![top_49_barchart_v_nn_2005](docs/_static/top_49_barchart_v_nn_2005.png)
+  
+  ![LosAngeles_2005](docs/_static/LosAngeles_2005.png)
+  
+  ![Miami_2005](docs/_static/Miami_2005.png)
+  
+  ![NewYork_2005](docs/_static/NewYork_2005.png)
   
 ## Issues, questions, comments, etc.?
 If you would like to suggest features, request tests, discuss contributions, report bugs, 

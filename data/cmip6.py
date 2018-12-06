@@ -18,9 +18,6 @@ class CMIP6EmissionsGrid(EmissionsGrid):
         self.name = 'CMIP6'
         self.glob = glob
 
-        self.lat_grid, self.lon_grid = np.meshgrid(em_data.lat.values, em_data.lon.values,
-                                                   indexing='ij')
-
         timestamp = str(np.datetime_as_string(em_data.time[0].values, unit='D'))
         if months is None:
             months = pd.date_range(start=timestamp, periods=len(em_data.time), freq='M')
