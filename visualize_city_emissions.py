@@ -9,6 +9,9 @@ import os
 import argparse
 import numpy as np
 import pandas as pd
+import matplotlib
+matplotlib.use('TkAgg')
+
 import matplotlib.pyplot as plt
 
 from cartopy import crs as ccrs
@@ -30,6 +33,9 @@ def parse_args(args=None):
     parser.add_argument('-e', '--emissions', type=data.get_emissions_grid,
                         default='CMIP6',
                         help='The emissions dataset.')
+
+    parser.add_argument('-t', '--title', action='store_true', default=False,
+                        help='Include plot titles')
 
     parser.add_argument('-y', '--year',
                         default='2005',
@@ -76,10 +82,10 @@ def main(args):
                    transform=ccrs.PlateCarree())
 
     # Finish plot
-    title = ' '.join([])
-    plt.title(f'The top 49 $CO_2$ emitting cities in 2005 [Hoornweg, 2010], \n'
-              f'located within the {emis.name} globally gridded $CO_2$ emissions'
-              f'(Mt; >1e-4) during {args.year}')
+    if args.title:
+        plt.title(f'The top 49 $CO_2$ emitting cities in 2005 [Hoornweg, 2010], \n'
+                  f'located within the {emis.name} globally gridded $CO_2$ emissions'
+                  f'(Mt; >1e-4) during {args.year}')
 
     cbar = fig.colorbar(pcm, orientation='horizontal', fraction=0.03, pad=0.05)
     cbar.set_label('Mt $CO_2$')
@@ -93,7 +99,8 @@ def main(args):
     ax.legend(['Hoornweg, 2010 (Mt CO2)'])
     ax.set_ylabel('Mt CO2')
 
-    plt.title(f'The top 49 $CO_2$ emitting cities in 2005 [Hoornweg, 2010]')
+    if args.title:
+        plt.title(f'The top 49 $CO_2$ emitting cities in 2005 [Hoornweg, 2010]')
 
     plt.tight_layout()
     if args.save:
