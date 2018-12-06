@@ -9,7 +9,10 @@ import os
 import argparse
 import numpy as np
 import pandas as pd
+import matplotlib
+matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
+
 
 from cartopy import crs as ccrs
 from cartopy import feature as cpf
@@ -39,7 +42,7 @@ def parse_args(args=None):
                         help='Show the emissions grid. Warning: this will clobber the global'
                              ' map and is only useful for zooming in.')
 
-    parser.add_argument('-t', '--title', action='store_true', default=True,
+    parser.add_argument('-t', '--title', action='store_true', default=False,
                         help='Include plot titles')
 
     parser.add_argument('-s', '--save', action='store_true',
