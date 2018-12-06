@@ -68,7 +68,7 @@ def main(args):
         for ii in range(len(city_data[['Latitude']])):
             city_q_emissions[ii] = np.sum(emis_year_Mt.ravel()[city_q_idxs[ii, :]])
 
-        city_data['NN Emissions (MtCO2e)'] = city_q_emissions
+        city_data['NN Emissions (MtCO2e)'] = city_q_emissions * data.MOLAR_MASS_CO2 / data.MOLAR_MASS_C
         number_of_cells = args.nearest
 
     city_data['NN Em. - City (MtCO2e)'] = city_data.iloc[:, 7] - city_data.iloc[:, 5]

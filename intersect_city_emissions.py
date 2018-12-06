@@ -42,9 +42,15 @@ def parse_args(args=None):
                         default='2005',
                         help='Year to plot for the emissions dataset.')
 
-    parser.add_argument('-n', '--nearest', type=cat.unsigned_int, default=2,
+    parser.add_argument('-n', '--nearest', type=cat.unsigned_int, default=3,
                         help='Sum the emissions for this many cells which are '
                              'nearest neighbors to a city.')
+
+    parser.add_argument('--no-title', action='store_false',
+                        help='Do not include titles on the plots.')
+
+    parser.add_argument('-s', '--save', action='store_true',
+                        help='Save the figure as a 600dpi EPS figure instead of show.')
 
     return parser.parse_args(args)
 
@@ -90,7 +96,22 @@ def city_shape_from_record(reader: shapefile.Reader, city: str) -> dict:
     raise KeyError(f'{city} does not exist in the shapefile')
 
 
-def nn_corner_hulls(elem_nns: np.ndarray, x_corners: np.ndarray, y_corners: np.ndarray):
+def nn_corner_hulls(elem_nns: np.ndarray, x_corners: np.ndarray, y_corners: np.ndarray) -> list:
+    """
+        Get a set of convex hulls around the corners of the NN grid cells, where
+        the corners are defined like:
+
+        (X[i+1, j], Y[i+1, j])          (X[i+1, j+1], Y[i+1, j+1])
+                              +--------+
+                              | C[i,j] |
+                              +--------+
+            (X[i, j], Y[i, j])          (X[i, j+1], Y[i, j+1]),
+
+        :param elem_nns: An list of a list of NN index locations (C[idx])
+        :param x_corners: A meshgrid of the x coordinate values (X)
+        :param y_corners: A meshgrid of the y coordinate values (Y)
+        :return a list of shapely convex hull polygons
+        """
     grid_shape = np.array(x_corners.shape) - 1
     hull_shapes = []
     for elem in elem_nns:
@@ -131,7 +152,7 @@ def main(args):
 
     city_nn_outlines = nn_corner_hulls(city_q_idxs, emis.lon_corners, emis.lat_corners)
 
-    city_data['NN Emissions (MtCO2e)'] = city_q_emissions
+    city_data['NN Emissions (MtCO2e)'] = city_q_emissions * data.MOLAR_MASS_CO2 / data.MOLAR_MASS_C
 
     city_data['NN Em. - City (MtCO2e)'] = city_data['NN Emissions (MtCO2e)'] \
         - city_data['Total GHG (MtCO2e)']
@@ -176,8 +197,33 @@ def main(args):
 
         cbar = fig.colorbar(pcm, orientation='horizontal', fraction=0.03, pad=0.05)
         cbar.set_label('Mt $CO_2$')
-        plt.title(ct)
 
+        clat = city_data.loc[city_data.City == strip_all(ct)].Latitude.values[0]
+        clon = city_data.loc[city_data.City == strip_all(ct)].Longitude.values[0]
+        ax.set_extent([clon-1.5, clon+1.5, clat-1.5, clat+1.5], crs=ccrs.PlateCarree())
+
+        if args.no_title:
+            plt.title(ct)
+
+        plt.tight_layout()
+        if args.save:
+            plt.savefig(f'{strip_all(ct)}_{args.year}.eps', dpi=600)
+        else:
+            plt.show()
+
+    ax = city_data.plot.bar(x='City', y=['Total GHG (MtCO2e)', 'NN Emissions (MtCO2e)'], figsize=(16, 6))
+    ax.legend(['Hoornweg, 2010 (Mt CO2)', f'{emis.name} NN (Mt CO2)'])
+    ax.set_ylabel('Mt CO2')
+
+    if args.no_title:
+        plt.title(f'City emissions in 2005 [Hoornweg, 2010] (Mt) compared to \n'
+                  f'the {emis.name} emission calculated from {args.nearest} '
+                  f'nearest neighbor cells for {args.year}.')
+
+    plt.tight_layout()
+    if args.save:
+        plt.savefig(f'top_49_barchart_v_nn_{args.year}.eps', dpi=600)
+    else:
         plt.show()
 
 
