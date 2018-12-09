@@ -210,7 +210,7 @@ def main(args):
 
         plt.tight_layout()
         if args.save:
-            plt.savefig(f'{strip_all(ct)}_{args.year}.eps', dpi=600)
+            plt.savefig(f'{strip_all(ct)}_{args.year}.pdf', dpi=600)
         else:
             plt.show()
 
@@ -225,7 +225,7 @@ def main(args):
 
     plt.tight_layout()
     if args.save:
-        plt.savefig(f'top_49_barchart_v_nn_{args.year}.eps', dpi=600)
+        plt.savefig(f'top_49_barchart_v_nn_{args.year}.pdf')
     else:
         plt.show()
 
