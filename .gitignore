@@ -71,3 +71,4 @@ target/
 # Data
 *.nc
 *.status
+.Rproj.user
