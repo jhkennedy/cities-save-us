@@ -91,7 +91,7 @@ def main(args):
     cbar.set_label('Mt $CO_2$')
     plt.tight_layout()
     if args.save:
-        plt.savefig(f'top_49_in_globe_{args.year}.eps', dpi=600)
+        plt.savefig(f'top_49_in_globe_{args.year}.pdf', dpi=600)
     else:
         plt.show()
 
@@ -104,7 +104,7 @@ def main(args):
 
     plt.tight_layout()
     if args.save:
-        plt.savefig(f'top_49_barchart_{args.year}.eps', dpi=600)
+        plt.savefig(f'top_49_barchart_{args.year}.pdf', dpi=600)
     else:
         plt.show()
 
